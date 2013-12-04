@@ -691,37 +691,25 @@ public class VirtualMachines extends AbstractVMSupport {
         // TODO: very odd logic below; figure out what it thinks it is doing
         
         VirtualMachine vm = null;
-        
-        if (serverId == null) {
-            //only wait for job if we don't already have the resource id
-            Document responseDoc = provider.waitForJob(doc, "Launch Server");
-        
-            //parse vm from job completion response to capture vm passwords on initial launch.
-            if (responseDoc != null){
-                NodeList nodeList = responseDoc.getElementsByTagName("virtualmachine");
-                if (nodeList.getLength() > 0) {
-                    Node virtualMachine = nodeList.item(0);
-                    vm = toVirtualMachine(virtualMachine);
-                    if( vm != null ) {
-                        return vm;
-                    }
+
+        // have to wait on jobs as sometimes they fail and we need to bubble error message up
+        Document responseDoc = provider.waitForJob(doc, "Launch Server");
+
+        //parse vm from job completion response to capture vm passwords on initial launch.
+        if (responseDoc != null){
+            NodeList nodeList = responseDoc.getElementsByTagName("virtualmachine");
+            if (nodeList.getLength() > 0) {
+                Node virtualMachine = nodeList.item(0);
+                vm = toVirtualMachine(virtualMachine);
+                if( vm != null ) {
+                    return vm;
                 }
             }
         }
-        
+
         if (vm == null){
-            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20);
-	        while( System.currentTimeMillis() < timeout ) {
-	            try { vm = getVirtualMachine(serverId); }
-	            catch( Throwable ignore ) {  }
-	            if( vm != null ) {
-                    return vm;
-	            }
-	            try { Thread.sleep(5000L); }
-	            catch( InterruptedException ignore ) { }
-	        }
+            vm = getVirtualMachine(serverId);
         }
-        vm = getVirtualMachine(serverId);
         if( vm == null ) {
             throw new CloudException("No virtual machine provided: " + serverId);
         }
@@ -1376,6 +1364,8 @@ public class VirtualMachines extends AbstractVMSupport {
         }
 
         setFirewalls(server);
+        /*
+        // commenting out for now until we can find a way to return plain text rather than encrypted
         final String finalServerId = server.getProviderVirtualMachineId();
         server.setPasswordCallback(new Callable<String>() {
             @Override
@@ -1383,7 +1373,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 return getRootPassword(finalServerId);
             }
         }
-        );
+        ); */
         return server;
     }
 
