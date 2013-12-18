@@ -1151,8 +1151,7 @@ public class VirtualMachines extends AbstractVMSupport {
         VirtualMachine server = new VirtualMachine();
         NodeList attributes = node.getChildNodes();
         String productId = null;
-        
-        server.setTags(properties);
+
         server.setProviderOwnerId(provider.getContext().getAccountNumber());
         server.setClonable(false);
         server.setImagable(false);
@@ -1352,21 +1351,17 @@ public class VirtualMachines extends AbstractVMSupport {
         if( productId != null ) {
             server.setProductId(productId);
         }
-        if (server.getPlatform().equals(Platform.UNKNOWN)){
+        if (server.getPlatform().equals(Platform.UNKNOWN) || server.getArchitecture() == null){
             Templates support = provider.getComputeServices().getImageSupport();
             if (support != null){
                 MachineImage image =support.getImage(server.getProviderMachineImageId());
                 if (image != null){
-                    server.setPlatform(image.getPlatform());
-                }
-            }
-        }
-        if (server.getArchitecture() == null) {
-            Templates support = provider.getComputeServices().getImageSupport();
-            if (support != null){
-                MachineImage image =support.getImage(server.getProviderMachineImageId());
-                if (image != null){
-                    server.setArchitecture(image.getArchitecture());
+                    if (server.getPlatform().equals(Platform.UNKNOWN)) {
+                        server.setPlatform(image.getPlatform());
+                    }
+                    if (server.getArchitecture() == null) {
+                        server.setArchitecture(image.getArchitecture());
+                    }
                 }
             }
         }
@@ -1382,6 +1377,7 @@ public class VirtualMachines extends AbstractVMSupport {
             }
         }
         ); */
+        server.setTags(properties);
         return server;
     }
 
