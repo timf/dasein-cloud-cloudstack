@@ -1378,6 +1378,7 @@ public class VirtualMachines extends AbstractVMSupport {
         }
         ); */
         server.setTags(properties);
+        logger.debug("Server status of server "+server.getName()+"("+server.getProviderVirtualMachineId()+") is "+server.getCurrentState());
         return server;
     }
 
