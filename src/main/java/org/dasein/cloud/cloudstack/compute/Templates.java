@@ -68,11 +68,15 @@ import org.w3c.dom.NodeList;
 
 public class Templates extends AbstractImageSupport {
     static private final String CREATE_TEMPLATE             = "createTemplate";
+    static private final String DELETE_ISO                  = "deleteIso";
     static private final String DELETE_TEMPLATE             = "deleteTemplate";
+    static private final String LIST_ISOS                   = "listIsos";
     static private final String LIST_OS_TYPES               = "listOsTypes";
+    static private final String LIST_ISO_PERMISSIONS        = "listIsoPermissions";
     static private final String LIST_TEMPLATE_PERMISSIONS   = "listTemplatePermissions";
     static private final String LIST_TEMPLATES              = "listTemplates";
     static private final String REGISTER_TEMPLATE           = "registerTemplate";
+    static private final String UPDATE_ISO_PERMISSIONS      = "updateIsoPermissions";
     static private final String UPDATE_TEMPLATE_PERMISSIONS = "updateTemplatePermissions";
     
     private CSCloud provider;
@@ -103,9 +107,18 @@ public class Templates extends AbstractImageSupport {
             Param[] params = new Param[] { new Param("id", providerImageId), new Param("accounts", accountNumber), new Param("op", "add") };
 
             CSMethod method = new CSMethod(provider);
-            Document doc = method.get(method.buildUrl(UPDATE_TEMPLATE_PERMISSIONS, params), UPDATE_TEMPLATE_PERMISSIONS);
-
-            provider.waitForJob(doc, "Share Template");
+            Document doc;
+            try {
+                doc = method.get(method.buildUrl(UPDATE_TEMPLATE_PERMISSIONS, params), UPDATE_TEMPLATE_PERMISSIONS);
+                provider.waitForJob(doc, "Share Template");
+            }
+            catch (CSException e) {
+                if (e.getHttpCode()==431) {
+                    //try update iso share
+                    doc = method.get(method.buildUrl(UPDATE_ISO_PERMISSIONS, params), UPDATE_ISO_PERMISSIONS);
+                    provider.waitForJob(doc, "Share Iso");
+                }
+            }
         }
         finally {
             APITrace.end();
@@ -129,9 +142,18 @@ public class Templates extends AbstractImageSupport {
             Param[] params = new Param[] { new Param("id", providerImageId), new Param("isPublic", "true") };
 
             CSMethod method = new CSMethod(provider);
-            Document doc = method.get(method.buildUrl(UPDATE_TEMPLATE_PERMISSIONS, params), UPDATE_TEMPLATE_PERMISSIONS);
-
-            provider.waitForJob(doc, "Share Template");
+            Document doc;
+            try {
+                doc = method.get(method.buildUrl(UPDATE_TEMPLATE_PERMISSIONS, params), UPDATE_TEMPLATE_PERMISSIONS);
+                provider.waitForJob(doc, "Share Template");
+            }
+            catch (CSException e) {
+                if (e.getHttpCode()==431) {
+                    //try update iso share
+                    doc = method.get(method.buildUrl(UPDATE_ISO_PERMISSIONS, params), UPDATE_ISO_PERMISSIONS);
+                    provider.waitForJob(doc, "Share Iso");
+                }
+            }
         }
         finally {
             APITrace.end();
@@ -145,19 +167,42 @@ public class Templates extends AbstractImageSupport {
             CSMethod method = new CSMethod(provider);
             String url = method.buildUrl(LIST_TEMPLATES, new Param("id", providerImageId), new Param("templateFilter", "executable"), new Param("zoneId", getContext().getRegionId()));
             Document doc;
+            boolean isTemplate = true;
             try {
                 doc = method.get(url, LIST_TEMPLATES);
             }
             catch( CSException e ) {
                 if( e.getHttpCode() == 431 ) {
+                    //check if we can find a match to iso with this id
+                    url = method.buildUrl(LIST_ISOS, new Param("id", providerImageId), new Param("isoFilter", "executable"), new Param("zoneId", getContext().getRegionId()), new Param("bootable", "true"));
+                    try {
+                        doc = method.get(url, LIST_ISOS);
+                        isTemplate = false;
+                    }
+                    catch( CSException ex ) {
+                        if( ex.getHttpCode() == 431 ) {
+                            return null;
+                        }
+                        if( ex.getMessage() != null && (ex.getMessage().contains("specify a valid template ID") || ex.getMessage().contains("does not have permission")) ) {
+                            return null;
+                        }
+                        throw ex;
+                    }
+                }
+                else if( e.getMessage() != null && (e.getMessage().contains("specify a valid template ID") || e.getMessage().contains("does not have permission")) ) {
                     return null;
                 }
-                if( e.getMessage() != null && (e.getMessage().contains("specify a valid template ID") || e.getMessage().contains("does not have permission")) ) {
-                    return null;
+                else {
+                    throw e;
                 }
-                throw e;
             }
-            NodeList matches = doc.getElementsByTagName("template");
+            NodeList matches;
+            if (isTemplate) {
+                matches = doc.getElementsByTagName("template");
+            }
+            else {
+                matches = doc.getElementsByTagName("iso");
+            }
             for( int i=0; i<matches.getLength(); i++ ) {
                 Node node = matches.item(i);
 
@@ -354,8 +399,30 @@ public class Templates extends AbstractImageSupport {
         try {
             CSMethod method = new CSMethod(provider);
             String url = method.buildUrl(LIST_TEMPLATES, new Param("templateFilter", "executable"), new Param("id", templateId));
-            Document doc = method.get(url, LIST_TEMPLATES);
-            NodeList matches = doc.getElementsByTagName("template");
+            Document doc;
+            boolean isTemplate = true;
+
+            try {
+                doc = method.get(url, LIST_TEMPLATES);
+            }
+            catch( CSException e ) {
+                if( e.getHttpCode() == 431 ) {
+                    //check if we can find a match to iso with this id
+                    url = method.buildUrl(LIST_ISOS, new Param("id", templateId), new Param("isoFilter", "executable"), new Param("bootable", "true"));
+                    doc = method.get(url, LIST_ISOS);
+                    isTemplate = false;
+                }
+                else {
+                    throw e;
+                }
+            }
+            NodeList matches;
+            if (isTemplate) {
+                matches = doc.getElementsByTagName("template");
+            }
+            else {
+                matches = doc.getElementsByTagName("iso");
+            }
 
             for( int i=0; i<matches.getLength(); i++ ) {
                 Node node = matches.item(i);
@@ -378,9 +445,30 @@ public class Templates extends AbstractImageSupport {
         try {
             CSMethod method = new CSMethod(provider);
             String url = method.buildUrl(LIST_TEMPLATES, new Param("templateFilter", "executable"), new Param("id", templateId));
-            Document doc = method.get(url, LIST_TEMPLATES);
-            NodeList matches = doc.getElementsByTagName("template");
+            Document doc;
+            boolean isTemplate = true;
 
+            try {
+                doc = method.get(url, LIST_TEMPLATES);
+            }
+            catch( CSException e ) {
+                if( e.getHttpCode() == 431 ) {
+                    //check if we can find a match to iso with this id
+                    url = method.buildUrl(LIST_ISOS, new Param("id", templateId), new Param("isoFilter", "executable"), new Param("bootable", "true"));
+                    doc = method.get(url, LIST_ISOS);
+                    isTemplate = false;
+                }
+                else {
+                    throw e;
+                }
+            }
+            NodeList matches;
+            if (isTemplate) {
+                matches = doc.getElementsByTagName("template");
+            }
+            else {
+                matches = doc.getElementsByTagName("iso");
+            }
             if( matches.getLength() > 0 ) {
                 Node node = matches.item(0);
 
@@ -478,6 +566,36 @@ public class Templates extends AbstractImageSupport {
                     templates.add(status);
                 }
             }
+
+            //add iso status
+            templates.addAll(listIsoStatus());
+            return templates;
+        }
+        finally {
+            APITrace.end();
+        }
+    }
+
+    private @Nonnull ArrayList<ResourceStatus> listIsoStatus() throws CloudException, InternalException {
+        APITrace.begin(getProvider(), "Image.listImageStatus");
+        try {
+            ProviderContext ctx = provider.getContext();
+
+            if( ctx == null ) {
+                throw new CloudException("No context was set for this request");
+            }
+            CSMethod method = new CSMethod(provider);
+            Document doc = method.get(method.buildUrl(LIST_ISOS, new Param("isoFilter", "self"), new Param("zoneId", ctx.getRegionId()), new Param("bootable", "true")), LIST_ISOS);
+            ArrayList<ResourceStatus> templates = new ArrayList<ResourceStatus>();
+            NodeList matches = doc.getElementsByTagName("iso");
+
+            for( int i=0; i<matches.getLength(); i++ ) {
+                ResourceStatus status = toStatus(matches.item(i), false);
+
+                if( status != null ) {
+                    templates.add(status);
+                }
+            }
             return templates;
         }
         finally {
@@ -514,6 +632,46 @@ public class Templates extends AbstractImageSupport {
                     templates.add(image);
                 }
             }
+
+            //list isos too
+            templates.addAll(listIsos(options));
+
+            return templates;
+        }
+        finally {
+            APITrace.end();
+        }
+    }
+
+    private @Nonnull ArrayList<MachineImage> listIsos(@Nullable ImageFilterOptions options) throws CloudException, InternalException {
+        APITrace.begin(getProvider(), "Image.listIsos");
+        try {
+            CSMethod method = new CSMethod(provider);
+            String accountNumber = (options == null ? null : options.getAccountNumber());
+            Param[] params;
+
+            if( accountNumber == null || provider.getServiceProvider().equals(CSServiceProvider.DATAPIPE) ) {
+                params = new Param[] { new Param("isoFilter", "selfexecutable"),  new Param("zoneId", getContext().getRegionId()), new Param("bootable", "true") };
+            }
+            else {
+                String domainId = provider.getDomainId(accountNumber);
+                String parentAccount = provider.getParentAccount(accountNumber);
+                params = new Param[] { new Param("isoFilter", "executable"),  new Param("zoneId", getContext().getRegionId()), new Param("account", parentAccount), new Param("domainId", domainId), new Param("bootable", "true") };
+            }
+
+            Document doc = method.get(method.buildUrl(LIST_ISOS, params), LIST_ISOS);
+
+            ArrayList<MachineImage> templates = new ArrayList<MachineImage>();
+            NodeList matches = doc.getElementsByTagName("iso");
+
+            for( int i=0; i<matches.getLength(); i++ ) {
+                MachineImage image = toImage(matches.item(i), false);
+
+                if( image != null && (options == null || options.matches(image)) ) {
+                    templates.add(image);
+                }
+            }
+
             return templates;
         }
         finally {
@@ -526,7 +684,19 @@ public class Templates extends AbstractImageSupport {
         APITrace.begin(getProvider(), "Image.listShares");
         try {
             CSMethod method = new CSMethod(provider);
-            Document doc = method.get(method.buildUrl(LIST_TEMPLATE_PERMISSIONS, new Param("id", templateId)), LIST_TEMPLATES);
+            Document doc;
+            try {
+                doc = method.get(method.buildUrl(LIST_TEMPLATE_PERMISSIONS, new Param("id", templateId)), LIST_TEMPLATES);
+            }
+            catch( CSException e ) {
+                if( e.getHttpCode() == 431 ) {
+                    //check if we can find a match to iso with this id
+                    doc = method.get(method.buildUrl(LIST_ISO_PERMISSIONS, new Param("id", templateId)), LIST_ISO_PERMISSIONS);
+                }
+                else {
+                    throw e;
+                }
+            }
             TreeSet<String> accounts = new TreeSet<String>();
             NodeList matches = doc.getElementsByTagName("account");
 
@@ -662,9 +832,22 @@ public class Templates extends AbstractImageSupport {
                 throw new CloudException(accountNumber + " cannot remove images belonging to " + img.getProviderOwnerId());
             }
             CSMethod method = new CSMethod(provider);
-            Document doc = method.get(method.buildUrl(DELETE_TEMPLATE, new Param("id", providerImageId)), DELETE_TEMPLATE);
+            Document doc;
 
-            provider.waitForJob(doc, "Delete Template");
+            try {
+                doc = method.get(method.buildUrl(DELETE_TEMPLATE, new Param("id", providerImageId)), DELETE_TEMPLATE);
+                provider.waitForJob(doc, "Delete Template");
+            }
+            catch (CSException e) {
+                if (e.getHttpCode()==431) {
+                    //try update iso share
+                    doc = method.get(method.buildUrl(DELETE_ISO, new Param("id", providerImageId)), DELETE_ISO);
+                    provider.waitForJob(doc, "Delete Iso");
+                }
+                else {
+                    throw e;
+                }
+            }
         }
         finally {
             APITrace.end();
@@ -701,9 +884,18 @@ public class Templates extends AbstractImageSupport {
             Param[] params = new Param[] { new Param("id", providerImageId), new Param("accounts", accountNumber), new Param("op", "remove") };
 
             CSMethod method = new CSMethod(provider);
-            Document doc = method.get(method.buildUrl(UPDATE_TEMPLATE_PERMISSIONS, params), UPDATE_TEMPLATE_PERMISSIONS);
-
-            provider.waitForJob(doc, "Share Template");
+            Document doc;
+            try {
+                doc = method.get(method.buildUrl(UPDATE_TEMPLATE_PERMISSIONS, params), UPDATE_TEMPLATE_PERMISSIONS);
+                provider.waitForJob(doc, "Share Template");
+            }
+            catch (CSException e) {
+                if (e.getHttpCode()==431) {
+                    //try update iso share
+                    doc = method.get(method.buildUrl(UPDATE_ISO_PERMISSIONS, params), UPDATE_ISO_PERMISSIONS);
+                    provider.waitForJob(doc, "Share Iso");
+                }
+            }
         }
         finally {
             APITrace.end();
@@ -731,9 +923,18 @@ public class Templates extends AbstractImageSupport {
             Param[] params = new Param[] { new Param("id", providerImageId), new Param("isPublic", "false") };
 
             CSMethod method = new CSMethod(provider);
-            Document doc = method.get(method.buildUrl(UPDATE_TEMPLATE_PERMISSIONS, params), UPDATE_TEMPLATE_PERMISSIONS);
-
-            provider.waitForJob(doc, "Share Template");
+            Document doc;
+            try {
+                doc = method.get(method.buildUrl(UPDATE_TEMPLATE_PERMISSIONS, params), UPDATE_TEMPLATE_PERMISSIONS);
+                provider.waitForJob(doc, "Share Template");
+            }
+            catch (CSException e) {
+                if (e.getHttpCode()==431) {
+                    //try update iso share
+                    doc = method.get(method.buildUrl(UPDATE_ISO_PERMISSIONS, params), UPDATE_ISO_PERMISSIONS);
+                    provider.waitForJob(doc, "Share Iso");
+                }
+            }
         }
         finally {
             APITrace.end();
@@ -743,11 +944,13 @@ public class Templates extends AbstractImageSupport {
     @Override
     public @Nonnull Iterable<MachineImage> searchPublicImages(final @Nonnull ImageFilterOptions options) throws CloudException, InternalException {
         //dmayne 20131004: need to get both sets of filters (featured and community) to match direct console
-        final Param[] params1, params2;
-        ArrayList<MachineImage> allImages = new ArrayList<MachineImage>();
+        final Param[] params1, params2, params3, params4;
+        final ArrayList<MachineImage> allImages = new ArrayList<MachineImage>();
 
         params1 = new Param[] { new Param("templateFilter", "featured"),  new Param("zoneId", getContext().getRegionId()) };
         params2 = new Param[] { new Param("templateFilter", "community"),  new Param("zoneId", getContext().getRegionId()) };
+        params3 = new Param[] { new Param("templateFilter", "featured"),  new Param("zoneId", getContext().getRegionId()), new Param("bootable", "true") };
+        params4 = new Param[] { new Param("templateFilter", "community"),  new Param("zoneId", getContext().getRegionId()), new Param("bootable", "true") };
 
         final CSMethod method = new CSMethod(provider);
 
@@ -760,6 +963,37 @@ public class Templates extends AbstractImageSupport {
                     try {
                         Document doc = method.get(method.buildUrl(LIST_TEMPLATES, params1), LIST_TEMPLATES);
                         NodeList matches = doc.getElementsByTagName("template");
+
+                        for( int i=0; i<matches.getLength(); i++ ) {
+                            MachineImage img = toImage(matches.item(i), true);
+
+                            if( img != null && options.matches(img) ) {
+                                iterator.push(img);
+                            }
+                        }
+                    }
+                    finally {
+                        APITrace.end();
+                    }
+                }
+                finally {
+                    provider.release();
+                }
+            }
+        });
+
+        populator.populate();
+        allImages.addAll(populator.getResult());
+
+        provider.hold();
+        populator = new PopulatorThread<MachineImage>(new JiteratorPopulator<MachineImage>() {
+            @Override
+            public void populate(@Nonnull Jiterator<MachineImage> iterator) throws Exception {
+                try {
+                    APITrace.begin(getProvider(), "Image.searchPublicImages.populate");
+                    try {
+                        Document doc = method.get(method.buildUrl(LIST_ISOS, params3), LIST_ISOS);
+                        NodeList matches = doc.getElementsByTagName("iso");
 
                         for( int i=0; i<matches.getLength(); i++ ) {
                             MachineImage img = toImage(matches.item(i), true);
@@ -796,7 +1030,38 @@ public class Templates extends AbstractImageSupport {
                             for( int i=0; i<matches.getLength(); i++ ) {
                                 MachineImage img = toImage(matches.item(i), true);
 
-                                if( img != null && options.matches(img) ) {
+                                if( img != null && options.matches(img) && !allImages.contains(img)) {
+                                    iterator.push(img);
+                                }
+                            }
+                        }
+                        finally {
+                            APITrace.end();
+                        }
+                    }
+                    finally {
+                        provider.release();
+                    }
+                }
+            });
+
+            populator.populate();
+            allImages.addAll(populator.getResult());
+
+            provider.hold();
+            populator = new PopulatorThread<MachineImage>(new JiteratorPopulator<MachineImage>() {
+                @Override
+                public void populate(@Nonnull Jiterator<MachineImage> iterator) throws Exception {
+                    try {
+                        APITrace.begin(getProvider(), "Image.searchPublicImages.populate");
+                        try {
+                            Document doc = method.get(method.buildUrl(LIST_ISOS, params4), LIST_ISOS);
+                            NodeList matches = doc.getElementsByTagName("iso");
+
+                            for( int i=0; i<matches.getLength(); i++ ) {
+                                MachineImage img = toImage(matches.item(i), true);
+
+                                if( img != null && options.matches(img) && !allImages.contains(img)) {
                                     iterator.push(img);
                                 }
                             }
@@ -815,7 +1080,6 @@ public class Templates extends AbstractImageSupport {
             allImages.addAll(populator.getResult());
         }
         return allImages;
-        //return populator.getResult();
     }
 
     @Override
