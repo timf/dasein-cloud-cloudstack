@@ -567,8 +567,8 @@ public class Templates extends AbstractImageSupport {
                 }
             }
 
-            //add iso status
-            templates.addAll(listIsoStatus());
+            //todo add iso status once we have support for launching from them
+            //templates.addAll(listIsoStatus());
             return templates;
         }
         finally {
@@ -633,8 +633,8 @@ public class Templates extends AbstractImageSupport {
                 }
             }
 
-            //list isos too
-            templates.addAll(listIsos(options));
+            //todo list isos too once we have support for launching from them
+            //templates.addAll(listIsos(options));
 
             return templates;
         }
@@ -949,8 +949,9 @@ public class Templates extends AbstractImageSupport {
 
         params1 = new Param[] { new Param("templateFilter", "featured"),  new Param("zoneId", getContext().getRegionId()) };
         params2 = new Param[] { new Param("templateFilter", "community"),  new Param("zoneId", getContext().getRegionId()) };
-        params3 = new Param[] { new Param("templateFilter", "featured"),  new Param("zoneId", getContext().getRegionId()), new Param("bootable", "true") };
-        params4 = new Param[] { new Param("templateFilter", "community"),  new Param("zoneId", getContext().getRegionId()), new Param("bootable", "true") };
+        //todo add public isos when we can support launching vms from them
+        // params3 = new Param[] { new Param("isoFilter", "featured"),  new Param("zoneId", getContext().getRegionId()), new Param("bootable", "true") };
+        // params4 = new Param[] { new Param("isoFilter", "community"),  new Param("zoneId", getContext().getRegionId()), new Param("bootable", "true") };
 
         final CSMethod method = new CSMethod(provider);
 
@@ -985,6 +986,7 @@ public class Templates extends AbstractImageSupport {
         populator.populate();
         allImages.addAll(populator.getResult());
 
+        /*todo add public isos when we can support launching vms from them
         provider.hold();
         populator = new PopulatorThread<MachineImage>(new JiteratorPopulator<MachineImage>() {
             @Override
@@ -1015,6 +1017,7 @@ public class Templates extends AbstractImageSupport {
 
         populator.populate();
         allImages.addAll(populator.getResult());
+        */
 
         if (!provider.getServiceProvider().equals(CSServiceProvider.DATAPIPE) ) {
             provider.hold();
@@ -1048,6 +1051,7 @@ public class Templates extends AbstractImageSupport {
             populator.populate();
             allImages.addAll(populator.getResult());
 
+            /* todo add public isos when we can support launching vms from them
             provider.hold();
             populator = new PopulatorThread<MachineImage>(new JiteratorPopulator<MachineImage>() {
                 @Override
@@ -1078,6 +1082,7 @@ public class Templates extends AbstractImageSupport {
 
             populator.populate();
             allImages.addAll(populator.getResult());
+            */
         }
         return allImages;
     }
