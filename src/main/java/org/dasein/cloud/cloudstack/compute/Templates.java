@@ -314,13 +314,8 @@ public class Templates extends AbstractImageSupport {
                 throw new CloudException("No root volume is attached to the target server.");
             }
 
-            MachineImage img = getImage(server.getProviderMachineImageId());
-            String osId = (img == null ? null : (String)img.getTag("cloud.com.os.typeId"));
-            if (osId == null) {
-                //try to get os type of server
-                osId = server.getTag("guestosid").toString();
-            }
-
+            MachineImage img;
+            String osId = server.getTag("guestosid").toString();
             String name = validateName(options.getName());
             Param[] params = new Param[8];
 
