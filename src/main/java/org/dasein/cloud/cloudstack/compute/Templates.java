@@ -326,7 +326,7 @@ public class Templates extends AbstractImageSupport {
             params[4] = new Param("isPublic", "false");
             params[5] = new Param("isFeatured", "false");
             params[6] = new Param("volumeid",rootVolumeId);
-            params[7] = new Param("passwordEnabled", String.valueOf(isPasswordEnabled(server.getProviderMachineImageId())));
+            params[7] = new Param("passwordEnabled", String.valueOf(server.getTag("passwordenabled")));
             doc = method.get(method.buildUrl(CREATE_TEMPLATE, params), CREATE_TEMPLATE);
 
             NodeList matches = doc.getElementsByTagName("templateid"); // v2.1
