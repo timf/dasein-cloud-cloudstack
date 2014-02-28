@@ -1367,7 +1367,7 @@ public class VirtualMachines extends AbstractVMSupport {
             }
         }
 
-        setFirewalls(server);
+        //setFirewalls(server);
         /*
         // commenting out for now until we can find a way to return plain text rather than encrypted
         final String finalServerId = server.getProviderVirtualMachineId();
