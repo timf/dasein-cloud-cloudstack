@@ -817,6 +817,8 @@ public class Templates extends AbstractImageSupport {
                 throw new CloudException("No context was set for the request");
             }
             String accountNumber = ctx.getAccountNumber();
+            String regionId = ctx.getRegionId();
+
             MachineImage img = getImage(providerImageId);
 
             if( img == null ) {
@@ -830,13 +832,13 @@ public class Templates extends AbstractImageSupport {
             Document doc;
 
             try {
-                doc = method.get(method.buildUrl(DELETE_TEMPLATE, new Param("id", providerImageId)), DELETE_TEMPLATE);
+                doc = method.get(method.buildUrl(DELETE_TEMPLATE, new Param("id", providerImageId), new Param("zoneid", regionId)), DELETE_TEMPLATE);
                 provider.waitForJob(doc, "Delete Template");
             }
             catch (CSException e) {
                 if (e.getHttpCode()==431) {
                     //try update iso share
-                    doc = method.get(method.buildUrl(DELETE_ISO, new Param("id", providerImageId)), DELETE_ISO);
+                    doc = method.get(method.buildUrl(DELETE_ISO, new Param("id", providerImageId), new Param("zoneid", regionId)), DELETE_ISO);
                     provider.waitForJob(doc, "Delete Iso");
                 }
                 else {
@@ -1099,7 +1101,7 @@ public class Templates extends AbstractImageSupport {
 
     @Override
     public boolean supportsImageSharing() {
-        return true;
+        return false;
     }
 
     @Override
